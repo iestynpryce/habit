@@ -104,14 +104,6 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-int parse_cli_input(char *str) {
-	if (strcmp(str,"yes") == 0) {
-		return 1;
-	}
-
-	return 0;
-}
-
 void add_rand_point(habit *h) {
 	h->points += (rand() % 10) +1;
 	printf("You now have %f points\n",h->points);
