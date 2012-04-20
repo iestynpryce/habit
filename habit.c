@@ -15,7 +15,8 @@ int main(int argc, char *argv[]) {
 
 	FILE *file;
 	char line[80];
-
+	
+	/* Seed the random number generator */
 	srand(time(0));
 
 	/* Test that we have the right number of command line arguments */
@@ -31,15 +32,25 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	//habit *habits;
+	habit *habits;
 	const char sep[] = ",";
 	size_t nbytes = 80;
+	size_t nrec = 10;
 	int n = 0;
 	int i;
 
-	habit habits[10]; 
+	habits = (habit*) malloc(nrec*sizeof(habit));
 
+	/* Read in the habits */
 	while(fgets(line,nbytes,file) != NULL) {
+		if (n == nrec) {
+			nrec += 10;
+			void *v = realloc(habits,nrec*sizeof(habit));
+			if (v == NULL) {
+				/* ERROR */
+				break;
+			}
+		}
 		/* Parse each line */
 		strcpy(habits[n].habit,strtok(line,sep));
 		strcpy(habits[n].reward,strtok(NULL,sep));
@@ -54,6 +65,7 @@ int main(int argc, char *argv[]) {
 	str = (char*) malloc ((nbytes+1));
 	int ibuf;
 
+	/* Enter a primitive shell to do actions on the habits */
 	while(1) {
 		printf("-1) quit\n");
 		for (i=0;i<n;i++) {
@@ -66,16 +78,17 @@ int main(int argc, char *argv[]) {
 
 		if (ibuf >= 0 && ibuf < n) {
 			perform_habit(&habits[ibuf]);
-		}
-		if (ibuf == -1) {
+		} else if (ibuf == -1) {
 			break;
 		}
 	}
 
+	
+
+	/* Now that things may have changed, write the file out again *
+ 	 * with the new information */
 	file = fopen(argv[1],"w");
 
-	/* now that things may have changed, write the file out again *
- 	 * with the new information */
 	for (i=0;i<n;i++) {
 		fprintf(file,"%s,%s,%f,%d\n",habits[i].habit,
 				     	     habits[i].reward,
@@ -85,7 +98,7 @@ int main(int argc, char *argv[]) {
 
 	/* Clean up */
 	fclose(file);
-	//free(habits);
+	free(habits);
 	free(str);
 
 	return 0;
@@ -130,7 +143,7 @@ void new_reward(habit *h) {
 }
 
 void new_habit() {
-	
+	/* Add code for adding a new habit */	
 }
 
 /* Once a habit has been selected, ask if it has been completed */
