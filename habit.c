@@ -7,9 +7,12 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 #include <math.h>
 #include <time.h>
+
+habit *habits;
+size_t nrec = 10;
+int nhabit = 0;
 
 int main(int argc, char *argv[]) {
 
@@ -32,31 +35,24 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	habit *habits;
 	const char sep[] = ",";
 	size_t nbytes = 80;
-	size_t nrec = 10;
-	int n = 0;
 	int i;
 
 	habits = (habit*) malloc(nrec*sizeof(habit));
 
 	/* Read in the habits */
 	while(fgets(line,nbytes,file) != NULL) {
-		if (n == nrec) {
+		if (nhabit == nrec) {
 			nrec += 10;
-			void *v = realloc(habits,nrec*sizeof(habit));
-			if (v == NULL) {
-				/* ERROR */
-				break;
-			}
+			habits = xrealloc(habits,nrec*sizeof(habit));
 		}
 		/* Parse each line */
-		strcpy(habits[n].habit,strtok(line,sep));
-		strcpy(habits[n].reward,strtok(NULL,sep));
-		habits[n].points = atof(strtok(NULL,sep));
-		habits[n].gates  = atoi(strtok(NULL,sep));
-		n++;		
+		strcpy(habits[nhabit].habit,strtok(line,sep));
+		strcpy(habits[nhabit].reward,strtok(NULL,sep));
+		habits[nhabit].points = atof(strtok(NULL,sep));
+		habits[nhabit].gates  = atoi(strtok(NULL,sep));
+		nhabit++;		
 	}
 	fclose(file);
 	
@@ -68,15 +64,15 @@ int main(int argc, char *argv[]) {
 	/* Enter a primitive shell to do actions on the habits */
 	while(1) {
 		printf("-1) quit\n");
-		for (i=0;i<n;i++) {
+		for (i=0;i<nhabit;i++) {
 			printf("%d) %s\n",i,habits[i].habit);
 		}
-		printf("Select a habit (0-%d): ",n-1);
+		printf("Select a habit (0-%d): ",nhabit-1);
 		getline(&str,&nbytes,stdin);
 		sscanf(str,"%s",buf);
 		ibuf = atoi(buf);
 
-		if (ibuf >= 0 && ibuf < n) {
+		if (ibuf >= 0 && ibuf < nhabit) {
 			perform_habit(&habits[ibuf]);
 		} else if (ibuf == -1) {
 			break;
@@ -89,7 +85,7 @@ int main(int argc, char *argv[]) {
  	 * with the new information */
 	file = fopen(argv[1],"w");
 
-	for (i=0;i<n;i++) {
+	for (i=0;i<nhabit;i++) {
 		fprintf(file,"%s,%s,%f,%d\n",habits[i].habit,
 				     	     habits[i].reward,
 				             habits[i].points,
@@ -104,6 +100,7 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
+/* Increase the number of points by a random number in the range [1,10] */
 void add_rand_point(habit *h) {
 	h->points += (rand() % 10) +1;
 	printf("You now have %f points\n",h->points);
@@ -127,15 +124,53 @@ void new_reward(habit *h) {
 	str = (char*) malloc(nbytes*sizeof(char));
 
 	if (str != NULL) {
-		printf("Enter a new habit: ");
+		printf("Enter a new reward: ");
 		getline(&str,&nbytes,stdin);
-		sscanf(str,"%s",h->reward);
+		sscanf(str,"%[^\t\n]",h->reward);
 		free(str);
 	}
 }
 
+/* Add a new habit */
 void new_habit() {
-	/* Add code for adding a new habit */	
+	/* Add code for adding a new habit */
+	if (habits == NULL) {
+		habits = (habit*) malloc(nrec*sizeof(habit));
+		if (habits == NULL) {
+			/*ERROR*/
+			return;
+		}
+	}
+
+	/* Resize array of habits if necessary */
+	if (nhabit == nrec) {
+		nrec += 10;
+		habits = xrealloc(habits,nrec*sizeof(habit));
+	} 
+
+	size_t nbytes = 80;
+	char* str;
+	str = (char*) malloc(nbytes*sizeof(char));
+
+	if (str != NULL) {
+		printf("Enter a new habit: ");
+		getline(&str,&nbytes,stdin);
+		sscanf(str,"%[^\t\n]",habits[nhabit].habit);
+		printf("Enter a reward: ");
+		getline(&str,&nbytes,stdin);
+		sscanf(str,"%[^\t\n]",habits[nhabit].reward);
+		free(str);
+	}	 
+	nhabit++;	
+}
+
+/* Wrapper with error handling around realloc */
+void *xrealloc (void *ptr, size_t size) {
+	void *value = realloc (ptr, size);
+	if (value == 0) {
+		/* ERROR;*/
+	}
+	return value;
 }
 
 /* Once a habit has been selected, ask if it has been completed */
