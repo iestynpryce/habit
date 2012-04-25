@@ -1,2 +1,12 @@
 habit - a command line utility to help you develop good habits!
+
+It is based upon the idea of Habit Judo [0], which uses randomized rewards in order to help you build good habits. This is a very simple command line utility which takes a CSV file, where every row equates to one habit you're working on building.
+
+Every time you've done a habit (go for a run, take out the bins, etc.) you're points for that habit are increased by a random number in the range [1,10]. Once you have 15 points you pass a gate and receive the reward attached to that habit. This allows you to get a new reward and add a new habit to build upon!
+
+Usage:
+	./habit me.habit
+
+[0] http://www.guardian.co.uk/lifeandstyle/2011/apr/23/this-column-change-life-random-rewards
+
 Author: Iestyn Pryce
