@@ -6,6 +6,10 @@ typedef struct {
 	int    gates;
 } habit;
 
+enum {  NONE,
+	OUT_OF_MEMORY,
+};
+
 void add_rand_point(habit *h);
 void check_gates(habit *h);
 void new_reward(habit *h);

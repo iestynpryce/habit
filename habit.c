@@ -41,6 +41,11 @@ int main(int argc, char *argv[]) {
 
 	habits = (habit*) malloc(nrec*sizeof(habit));
 
+	if (habits == NULL) {
+		fprintf(stderr,"Out of memory\n");
+		return OUT_OF_MEMORY;
+	}
+
 	/* Read in the habits */
 	while(fgets(line,nbytes,file) != NULL) {
 		if (nhabit == nrec) {
@@ -57,9 +62,15 @@ int main(int argc, char *argv[]) {
 	fclose(file);
 	
 	char buf[nbytes];
+	int ibuf;
 	char *str;
 	str = (char*) malloc ((nbytes+1));
-	int ibuf;
+
+	if (str == NULL) {
+		fprintf(stderr,"Out of memory\n");
+		free(habits);
+		return OUT_OF_MEMORY;
+	}
 
 	/* Enter a primitive shell to do actions on the habits */
 	while(1) {
@@ -128,6 +139,8 @@ void new_reward(habit *h) {
 		getline(&str,&nbytes,stdin);
 		sscanf(str,"%[^\t\n]",h->reward);
 		free(str);
+	} else {
+		fprintf(stderr,"Out of memory\n");
 	}
 }
 
@@ -138,6 +151,7 @@ void new_habit() {
 		habits = (habit*) malloc(nrec*sizeof(habit));
 		if (habits == NULL) {
 			/*ERROR*/
+			fprintf(stderr,"Out of memory\n");
 			return;
 		}
 	}
@@ -160,7 +174,10 @@ void new_habit() {
 		getline(&str,&nbytes,stdin);
 		sscanf(str,"%[^\t\n]",habits[nhabit].reward);
 		free(str);
-	}	 
+	} else {
+		fprintf(stderr,"Out of memory\n");
+	}
+	 
 	nhabit++;	
 }
 
@@ -169,6 +186,7 @@ void *xrealloc (void *ptr, size_t size) {
 	void *value = realloc (ptr, size);
 	if (value == 0) {
 		/* ERROR;*/
+		fprintf(stderr,"Out of memory\n");
 	}
 	return value;
 }
@@ -189,5 +207,7 @@ void perform_habit(habit *h) {
 			check_gates(h);
 		}
 		free(str);
+	} else {
+		fprintf(stderr,"Out of memory\n");
 	}
 }
