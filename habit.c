@@ -51,6 +51,9 @@ int main(int argc, char *argv[]) {
 		if (nhabit == nrec) {
 			nrec += 10;
 			habits = xrealloc(habits,nrec*sizeof(habit));
+			if (habits == NULL) {
+				return OUT_OF_MEMORY;
+			}
 		}
 		/* Parse each line */
 		strcpy(habits[nhabit].habit,strtok(line,sep));
@@ -120,16 +123,23 @@ void add_rand_point(habit *h) {
 void check_gates(habit *h) {
 	int i = (int) h->points / 15;
 	if (i > h->gates) {
+		habit *r;
 		h->gates++;
 		printf("You've passed a gate, well done\n");
 		printf("Treat yourself to: %s\n",h->reward);
 		/* We need a new reward and a new habit*/
-		new_reward(h);
-		new_habit();
+		r = new_reward(h);
+		if (r == NULL) {
+			fprintf(stderr,"Failed to set new reward\n");
+		}
+		r = new_habit();
+		if (r == NULL) {
+			fprintf(stderr,"Failed to add new habit\n");	
+		}
 	}
 }
 
-void new_reward(habit *h) {
+habit *new_reward(habit *h) {
 	size_t nbytes = 80;
 	char* str;
 	str = (char*) malloc(nbytes*sizeof(char));
@@ -139,20 +149,22 @@ void new_reward(habit *h) {
 		getline(&str,&nbytes,stdin);
 		sscanf(str,"%[^\t\n]",h->reward);
 		free(str);
+		return h;
 	} else {
 		fprintf(stderr,"Out of memory\n");
+		return NULL;
 	}
 }
 
 /* Add a new habit */
-void new_habit() {
+habit *new_habit() {
 	/* Add code for adding a new habit */
 	if (habits == NULL) {
 		habits = (habit*) malloc(nrec*sizeof(habit));
 		if (habits == NULL) {
 			/*ERROR*/
 			fprintf(stderr,"Out of memory\n");
-			return;
+			return habits;
 		}
 	}
 
@@ -160,6 +172,9 @@ void new_habit() {
 	if (nhabit == nrec) {
 		nrec += 10;
 		habits = xrealloc(habits,nrec*sizeof(habit));
+		if (habits == NULL) {
+			return NULL;
+		}
 	} 
 
 	size_t nbytes = 80;
@@ -176,17 +191,21 @@ void new_habit() {
 		free(str);
 	} else {
 		fprintf(stderr,"Out of memory\n");
+		return NULL;
 	}
 	 
 	nhabit++;	
+
+	return &habits[nhabit-1];
 }
 
 /* Wrapper with error handling around realloc */
 void *xrealloc (void *ptr, size_t size) {
 	void *value = realloc (ptr, size);
 	if (value == 0) {
-		/* ERROR;*/
+		/* ERROR*/
 		fprintf(stderr,"Out of memory\n");
+		exit(OUT_OF_MEMORY);
 	}
 	return value;
 }

@@ -12,8 +12,8 @@ enum {  NONE,
 
 void add_rand_point(habit *h);
 void check_gates(habit *h);
-void new_reward(habit *h);
-void new_habit();
+habit *new_reward(habit *h);
+habit *new_habit();
 void perform_habit(habit *h);
 
 void *xrealloc(void *ptr, size_t size);
