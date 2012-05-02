@@ -17,7 +17,6 @@ int nhabit = 0;
 int main(int argc, char *argv[]) {
 
 	FILE *file;
-	char line[80];
 	
 	/* Seed the random number generator */
 	srand(time(0));
@@ -35,7 +34,6 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	const char sep[] = ",";
 	size_t nbytes = 80;
 	int i;
 
@@ -47,21 +45,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* Read in the habits */
-	while(fgets(line,nbytes,file) != NULL) {
-		if (nhabit == nrec) {
-			nrec += 10;
-			habits = xrealloc(habits,nrec*sizeof(habit));
-			if (habits == NULL) {
-				return OUT_OF_MEMORY;
-			}
-		}
-		/* Parse each line */
-		strcpy(habits[nhabit].habit,strtok(line,sep));
-		strcpy(habits[nhabit].reward,strtok(NULL,sep));
-		habits[nhabit].points = atof(strtok(NULL,sep));
-		habits[nhabit].gates  = atoi(strtok(NULL,sep));
-		nhabit++;		
-	}
+	nhabit = read_habits(file,nbytes,nrec);
+
 	fclose(file);
 	
 	char buf[nbytes];
@@ -113,6 +98,60 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+/* Read in the habit file */
+int read_habits(FILE *file, size_t nbytes, int nrec) {
+	int n=0; 
+	char line[nbytes];
+	char *tok;
+	const char sep[] = ",";
+	
+	while(fgets(line,nbytes,file) != NULL) {
+		if (n == nrec) {
+			nrec += 10;
+			habits = xrealloc(habits,nrec*sizeof(habit));
+			if (habits == NULL) {
+				return OUT_OF_MEMORY;
+			}
+		}
+		/* Parse each line */
+		tok = strtok(line,sep);
+		if (tok != NULL) {
+			strcpy(habits[n].habit,tok);
+		} else {
+			read_error(n);
+		}
+
+		tok = strtok(NULL,sep);
+		if (tok != NULL) {
+			strcpy(habits[n].reward,tok);
+		} else {
+			read_error(n);
+		}
+		
+		tok = strtok(NULL,sep);
+		if (tok != NULL) {
+			habits[n].points = atof(tok);
+		} else {
+			read_error(n);
+		}
+		
+		tok = strtok(NULL,sep);
+		if (tok != NULL) {
+			habits[n].gates  = atoi(tok);
+		} else {
+			read_error(n);
+		}
+
+		n++;		
+	}
+	return n;
+}
+
+void read_error(int n) {
+	fprintf(stderr,"Warning: habit %d malformed. Skipping...\n",n);
+}
+	
 
 /* Increase the number of points by a random number in the range [1,10] */
 void add_rand_point(habit *h) {
