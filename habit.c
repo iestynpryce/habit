@@ -9,6 +9,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <assert.h>
 
 habit *habits;
 size_t nrec = 10;
@@ -78,8 +79,6 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	
-
 	/* Now that things may have changed, write the file out again *
  	 * with the new information */
 	file = fopen(argv[1],"w");
@@ -101,6 +100,7 @@ int main(int argc, char *argv[]) {
 
 /* Read in the habit file */
 int read_habits(FILE *file, size_t nbytes, int nrec) {
+	assert(file != NULL);
 	int n=0; 
 	char line[nbytes];
 	char *tok;
@@ -155,11 +155,13 @@ void read_error(int n) {
 
 /* Increase the number of points by a random number in the range [1,10] */
 void add_rand_point(habit *h) {
+	assert(h != NULL);
 	h->points += (rand() % 10) +1;
 	printf("You now have %f points\n",h->points);
 }
 
 void check_gates(habit *h) {
+	assert(h != NULL);
 	int i = (int) h->points / 15;
 	if (i > h->gates) {
 		habit *r;
@@ -179,6 +181,7 @@ void check_gates(habit *h) {
 }
 
 habit *new_reward(habit *h) {
+	assert(h != NULL);
 	size_t nbytes = 80;
 	char* str;
 	str = (char*) malloc(nbytes*sizeof(char));
@@ -240,6 +243,8 @@ habit *new_habit() {
 
 /* Wrapper with error handling around realloc */
 void *xrealloc (void *ptr, size_t size) {
+	assert(ptr != NULL);
+	assert(size > 0);
 	void *value = realloc (ptr, size);
 	if (value == 0) {
 		/* ERROR*/
@@ -251,6 +256,7 @@ void *xrealloc (void *ptr, size_t size) {
 
 /* Once a habit has been selected, ask if it has been completed */
 void perform_habit(habit *h) {
+	assert(h != NULL);
 	size_t nbytes = 5;
 	char buf[nbytes];
 	char *str;
