@@ -11,9 +11,9 @@
 #include <time.h>
 #include <assert.h>
 
-habit *habits;
-size_t nrec = 10;
-int nhabit = 0;
+static habit *habits;
+static size_t nrec = 10;
+static int nhabit = 0;
 
 int main(int argc, char *argv[]) {
 
