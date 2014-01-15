@@ -13,7 +13,7 @@
 
 static habit *habits;
 static size_t nrec = 10;
-static int nhabit = 0;
+static int nhabit = 1;
 
 int main(int argc, char *argv[]) {
 
@@ -42,6 +42,7 @@ int main(int argc, char *argv[]) {
 
 	if (habits == NULL) {
 		fprintf(stderr,"Out of memory\n");
+		fclose(file);
 		return OUT_OF_MEMORY;
 	}
 
