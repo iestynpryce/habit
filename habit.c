@@ -1,6 +1,7 @@
 /* Command line utility to practice habit forming using randomised rewards *
  * Author: Iestyn Pryce							   *
  * 09/04/2012
+ * 02/03/2014 - minor improvements
  */
 
 #include "habit.h"
@@ -31,7 +32,7 @@ int main(int argc, char *argv[]) {
 	file = fopen(argv[1],"r+");
 
 	if (file == NULL) {
-		printf("Unable to open file: %s\n",argv[1]);
+		fprintf(stderr,"Unable to open file: %s\n",argv[1]);
 		return 1;
 	}
 
@@ -195,7 +196,7 @@ habit *new_reward(habit *h) {
 		return h;
 	} else {
 		fprintf(stderr,"Out of memory\n");
-		return NULL;
+		exit(OUT_OF_MEMORY);
 	}
 }
 
@@ -207,7 +208,7 @@ habit *new_habit() {
 		if (habits == NULL) {
 			/*ERROR*/
 			fprintf(stderr,"Out of memory\n");
-			return habits;
+			exit(OUT_OF_MEMORY);
 		}
 	}
 
@@ -270,9 +271,12 @@ void perform_habit(habit *h) {
 		if (strcmp(buf,"y") == 0) { /* if matched */
 			add_rand_point(h);
 			check_gates(h);
+		} else if (strcmp(buf,"n") != 0) {
+			fprintf(stderr,"%s not a valid input\n",buf);
 		}
 		free(str);
 	} else {
 		fprintf(stderr,"Out of memory\n");
+		exit(OUT_OF_MEMORY);
 	}
 }
