@@ -6,34 +6,88 @@
 
 #include "habit.h"
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
 #include <time.h>
 #include <assert.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 static habit *habits;
 static size_t nrec = 10;
 static int nhabit = 1;
 
+static char *get_default_storage_path() {
+        char *path = NULL;
+        size_t len = 0;
+
+        char *env = getenv("HOME");
+        if (env == NULL) {
+                fprintf(stderr, "Failed: getenv(\"HOME\"): %s\n", __func__);
+                return NULL;
+        }
+
+        len = strlen(env + 1); /* Add one for '\0' char */
+        len += 7; /* Add 7 for '/.habit' */
+        path = malloc( len * sizeof(char)); 
+        if (path == NULL) {
+                fprintf(stderr, "Failed to allocate memory: %s\n", __func__);
+                return NULL;
+        }
+        strncpy(path, env, len);
+        strcat(path, "/.habit");
+
+        return path;
+}
+
+/* Check if a file exists at the filepath. Return 1 if it does, 0 otherwise. */
+static int file_exists(const char *filepath) {
+        int ret = 0;
+        struct stat buffer;
+
+        if (stat(filepath, &buffer) == 0) {
+                ret = 1;
+        }
+        
+        return ret;
+}
+
 int main(int argc, char *argv[]) {
 
 	FILE *file;
+    char *habit_file_path;
 	
 	/* Seed the random number generator */
 	srand(time(0));
 
 	/* Test that we have the right number of command line arguments */
-	if (argc != 2) {
+	/*if (argc != 2) {
 		printf("Usage: %s file.habit\n",argv[0]);
 		return 1;
-	}
+	}*/
 
-	file = fopen(argv[1],"r+");
+    habit_file_path = get_default_storage_path();
+
+    /* Check if the file exists, if it doesn't create an empty file */
+    if (!file_exists(habit_file_path)) {
+        int fd = open(habit_file_path, O_CREAT | O_WRONLY | O_EXCL, S_IRUSR | S_IWUSR);
+        if (fd < 0) {
+            fprintf(stderr, "failed to open file %s: %s\n", habit_file_path, __func__);
+            free(habit_file_path);
+            return -1;
+        }
+        close(fd);
+    }
+
+	file = fopen(habit_file_path, "r+");
 
 	if (file == NULL) {
-		fprintf(stderr,"Unable to open file: %s\n",argv[1]);
-		return 1;
+		fprintf(stderr,"Unable to open file: %s\n", habit_file_path);
+        free(habit_file_path);
+		return -11;
 	}
 
 	size_t nbytes = 80;
@@ -83,7 +137,7 @@ int main(int argc, char *argv[]) {
 
 	/* Now that things may have changed, write the file out again *
  	 * with the new information */
-	file = fopen(argv[1],"w");
+	file = fopen(habit_file_path,"w");
 
 	for (i=0;i<nhabit;i++) {
 		fprintf(file,"%s,%s,%f,%d\n",habits[i].habit,
@@ -93,6 +147,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* Clean up */
+    free(habit_file_path);
 	fclose(file);
 	free(habits);
 	free(str);
