@@ -3,9 +3,7 @@
  * 09/04/2012
  * 02/03/2014 - minor improvements
  */
-
 #include "habit.h"
-
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
@@ -15,10 +13,43 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-
 static habit *habits;
 static size_t nrec = 10;
 static int nhabit = 1;
+
+static char *get_default_storage_path();
+static int get_id();
+static void usage();
+
+static int add_habit(char *habit, char *reward)
+{
+	FILE *f;
+	char *path;
+	int id;
+
+	path = get_default_storage_path();
+	f = fopen(path, "a");
+	if (f == NULL) {
+		fprintf(stderr, "Unable to open file \"%s\": %s\n", path,
+			__func__);
+		free(path);
+		return -1;
+	}
+
+	id = get_id();
+
+	if (fprintf(f, "%d\t%s\t%s\t%d\t%d\n", id, habit, reward, 0, 0) < 0) {
+		fprintf(stderr, "Error writing to file \"%s\": %s\n", path,
+			__func__);
+		free(path);
+		fclose(f);
+		return -1;
+	}
+
+	free(path);
+	fclose(f);
+	return 0;
+}
 
 static char *get_default_storage_path()
 {
@@ -44,6 +75,12 @@ static char *get_default_storage_path()
 	return path;
 }
 
+int get_id()
+{
+	/* TODO: read the last used id from .habit file, add 1 and return */
+	return 0;
+}
+
 /* Check if a file exists at the filepath. Return 1 if it does, 0 otherwise. */
 static int file_exists(const char *filepath)
 {
@@ -57,20 +94,29 @@ static int file_exists(const char *filepath)
 	return ret;
 }
 
+void list_habits(char *path)
+{
+	char c;
+	FILE *f = fopen(path, "r+");
+	if (f == NULL) {
+		fprintf(stderr, "Unable to open file \"%s\": %s\n", path,
+			__func__);
+		free(path);
+		exit(-1);
+	}
+
+	while ((c = fgetc(f)) != EOF) {
+		fputc(c, stdout);
+	}
+}
+
 int main(int argc, char *argv[])
 {
-
-	FILE *file;
+//      FILE *file;
 	char *habit_file_path;
 
 	/* Seed the random number generator */
 	srand(time(0));
-
-	/* Test that we have the right number of command line arguments */
-	/*if (argc != 2) {
-	   printf("Usage: %s file.habit\n",argv[0]);
-	   return 1;
-	   } */
 
 	habit_file_path = get_default_storage_path();
 
@@ -87,74 +133,44 @@ int main(int argc, char *argv[])
 		close(fd);
 	}
 
-	file = fopen(habit_file_path, "r+");
+	/* Remove count of program name - now gives only a count of the args */
+	--argc;
+	++argv;
 
-	if (file == NULL) {
-		fprintf(stderr, "Unable to open file: %s\n", habit_file_path);
-		free(habit_file_path);
-		return -11;
-	}
+	/* Print out habits if no arguments are given */
+	if (argc < 1) {
+		list_habits(habit_file_path);
+	} else {
+		while (argc) {
+			if (**argv == '-') {
+				switch ((*argv)[1]) {
+				case 'a':	/* Add a new habit */
+					if (argc > 1) {
+						add_habit(argv[1], argv[2]);
+						++argv;
+						++argv;
+						--argc;
+						--argc;
+					} else {
+						usage();
+					}
+					break;
+				case 'l':	/* List current habits */
+					list_habits(habit_file_path);
+					break;
+				case 'r':	/* Record habit as done */
+					printf
+					    ("TODO: Record habit as having been done\n");
+					break;
 
-	size_t nbytes = 80;
-	int i;
-
-	habits = (habit *) malloc(nrec * sizeof(habit));
-
-	if (habits == NULL) {
-		fprintf(stderr, "Out of memory\n");
-		fclose(file);
-		return OUT_OF_MEMORY;
-	}
-
-	/* Read in the habits */
-	nhabit = read_habits(file, nbytes, nrec);
-
-	fclose(file);
-
-	char buf[nbytes];
-	int ibuf;
-	char *str;
-	str = (char *)malloc((nbytes + 1));
-
-	if (str == NULL) {
-		fprintf(stderr, "Out of memory\n");
-		free(habits);
-		return OUT_OF_MEMORY;
-	}
-
-	/* Enter a primitive shell to do actions on the habits */
-	while (1) {
-		printf("-1) quit\n");
-		for (i = 0; i < nhabit; i++) {
-			printf("%d) %s\n", i, habits[i].habit);
-		}
-		printf("Select a habit (0-%d): ", nhabit - 1);
-		getline(&str, &nbytes, stdin);
-		sscanf(str, "%s", buf);
-		ibuf = atoi(buf);
-
-		if (ibuf >= 0 && ibuf < nhabit) {
-			perform_habit(&habits[ibuf]);
-		} else if (ibuf == -1) {
-			break;
+				}
+			}
+			--argc;
+			++argv;
 		}
 	}
 
-	/* Now that things may have changed, write the file out again *
-	 * with the new information */
-	file = fopen(habit_file_path, "w");
-
-	for (i = 0; i < nhabit; i++) {
-		fprintf(file, "%s,%s,%f,%d\n", habits[i].habit,
-			habits[i].reward, habits[i].points, habits[i].gates);
-	}
-
-	/* Clean up */
 	free(habit_file_path);
-	fclose(file);
-	free(habits);
-	free(str);
-
 	return 0;
 }
 
@@ -166,7 +182,6 @@ int read_habits(FILE * file, size_t nbytes, int nrec)
 	char line[nbytes];
 	char *tok;
 	const char sep[] = ",";
-
 	while (fgets(line, nbytes, file) != NULL) {
 		if (n == nrec) {
 			nrec += 10;
@@ -249,7 +264,6 @@ habit *new_reward(habit * h)
 	size_t nbytes = 80;
 	char *str;
 	str = (char *)malloc(nbytes * sizeof(char));
-
 	if (str != NULL) {
 		printf("Enter a new reward: ");
 		getline(&str, &nbytes, stdin);
@@ -286,7 +300,6 @@ habit *new_habit()
 	size_t nbytes = 80;
 	char *str;
 	str = (char *)malloc(nbytes * sizeof(char));
-
 	if (str != NULL) {
 		printf("Enter a new habit: ");
 		getline(&str, &nbytes, stdin);
@@ -301,7 +314,6 @@ habit *new_habit()
 	}
 
 	nhabit++;
-
 	return &habits[nhabit - 1];
 }
 
@@ -343,4 +355,10 @@ void perform_habit(habit * h)
 		fprintf(stderr, "Out of memory\n");
 		exit(OUT_OF_MEMORY);
 	}
+}
+
+/* Print out the programs usage instructions */
+static void usage()
+{
+	printf("TODO\n");
 }
