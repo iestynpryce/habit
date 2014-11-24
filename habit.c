@@ -4,6 +4,8 @@
  * 02/03/2014 - minor improvements
  */
 #include "habit.h"
+
+#include <stdbool.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
@@ -75,10 +77,46 @@ static char *get_default_storage_path()
 	return path;
 }
 
+/* Get the next id which should be used from the .habit file */
 int get_id()
 {
-	/* TODO: read the last used id from .habit file, add 1 and return */
-	return 0;
+	char buf[80];
+	char *path;
+	FILE *f;
+	int id = 0;
+	bool check_buf = true;
+
+	path = get_default_storage_path();
+	f = fopen(path, "r");
+	if (f == NULL) {
+		fprintf(stderr, "Unable to open file \"%s\": %s\n", path,
+			__func__);
+		free(path);
+		return -1;
+	}
+	free(path);
+
+	while (fgets(buf, 80, f) != NULL) {
+		int id_tmp;
+		/* Only check the buffer for the current ids if the check_buf flag is true.
+		 * This will be true if the last buffer contained a new line.
+		 * FIXME: this behaviour is likely to be buggy if the buffer straddles two
+		 * lines i.e. "foo\n3    bar". An issue with long lines.
+		 */
+		if (check_buf) {
+			sscanf(buf, "%d\t", &id_tmp);
+			if (id_tmp > id) {
+				id = id_tmp;
+			}
+		}
+		check_buf = false;
+		if (strstr(buf, "\n")) {
+			check_buf = true;
+		}
+	}
+
+	fclose(f);
+	return id + 1;
 }
 
 /* Check if a file exists at the filepath. Return 1 if it does, 0 otherwise. */
