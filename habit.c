@@ -21,6 +21,8 @@ static int nhabit = 1;
 
 static char *get_default_storage_path();
 static int get_id();
+static int get_line(char **line, size_t * len, FILE * f);
+static void record_habit(char *id);
 static void usage();
 
 static int add_habit(char *habit, char *reward)
@@ -80,11 +82,12 @@ static char *get_default_storage_path()
 /* Get the next id which should be used from the .habit file */
 int get_id()
 {
-	char buf[80];
+	char *line = NULL;
 	char *path;
 	FILE *f;
 	int id = 0;
-	bool check_buf = true;
+	size_t bufsize = 0;
+	int nchar = 0;
 
 	path = get_default_storage_path();
 	f = fopen(path, "r");
@@ -96,27 +99,67 @@ int get_id()
 	}
 	free(path);
 
-	while (fgets(buf, 80, f) != NULL) {
+	while (true) {
 		int id_tmp;
-		/* Only check the buffer for the current ids if the check_buf flag is true.
-		 * This will be true if the last buffer contained a new line.
-		 * FIXME: this behaviour is likely to be buggy if the buffer straddles two
-		 * lines i.e. "foo\n3    bar". An issue with long lines.
-		 */
-		if (check_buf) {
-			sscanf(buf, "%d\t", &id_tmp);
+		nchar = get_line(&line, &bufsize, f);
+		if (nchar < 0) {
+			break;
+		} else {
+			sscanf(line, "%d\t", &id_tmp);
 			if (id_tmp > id) {
 				id = id_tmp;
 			}
 		}
-		check_buf = false;
-		if (strstr(buf, "\n")) {
-			check_buf = true;
-		}
+		free(line);
 	}
 
 	fclose(f);
 	return id + 1;
+}
+
+/* Returns number of characters in lineptr, -1 if EOF or error.
+ * Caller must free the returned memory assigned to lineptr. */
+static int get_line(char **lineptr, size_t * len, FILE * f)
+{
+	char c;
+	char *line = NULL;
+	int counter = 0;
+	size_t bufsize = 80;
+
+	assert(f);
+
+	line = malloc(bufsize * sizeof(char));
+	if (line == NULL) {
+		fprintf(stderr, "Error in malloc: %s\n", __func__);
+		return -1;
+	}
+
+	c = getc(f);
+	if (c == EOF) {
+		free(line);
+		return -1;
+	}
+	while ((c != '\n') && (c != EOF)) {
+		if (counter == (bufsize - 1)) {
+			char *tmp = realloc(line, 2 * bufsize * sizeof(char));
+			if (tmp != NULL) {
+				line = tmp;
+				bufsize *= 2;
+			} else {
+				fprintf(stderr, "Error reallocing memory: %s\n",
+					__func__);
+				return -1;
+			}
+		}
+		line[counter] = c;
+		++counter;
+		c = getc(f);
+	}
+	line[counter] = '\0';
+	*lineptr = line;
+	*len = bufsize;
+
+	return counter + 1;
 }
 
 /* Check if a file exists at the filepath. Return 1 if it does, 0 otherwise. */
@@ -148,9 +191,28 @@ void list_habits(char *path)
 	}
 }
 
+static void record_habit(char *strid)
+{
+	long int id = strtol(strid, NULL, 0);
+	fprintf(stdout, "%ld\n", id);
+//      char *temp_path;
+//      char *path;
+
+	// Find habit with 'id'
+
+	// Write out habit data to temp file up to the record we're updating
+
+	// Write out an updated record
+
+	// Write out the rest of the records
+
+	// Copy file to ~/.habit
+
+	// Write change information to stdout
+}
+
 int main(int argc, char *argv[])
 {
-//      FILE *file;
 	char *habit_file_path;
 
 	/* Seed the random number generator */
@@ -183,7 +245,7 @@ int main(int argc, char *argv[])
 			if (**argv == '-') {
 				switch ((*argv)[1]) {
 				case 'a':	/* Add a new habit */
-					if (argc > 1) {
+					if (argc > 2) {
 						add_habit(argv[1], argv[2]);
 						++argv;
 						++argv;
@@ -197,6 +259,13 @@ int main(int argc, char *argv[])
 					list_habits(habit_file_path);
 					break;
 				case 'r':	/* Record habit as done */
+					if (argc > 1) {
+						record_habit(argv[1]);
+						++argv;
+						--argc;
+					} else {
+						usage();
+					}
 					printf
 					    ("TODO: Record habit as having been done\n");
 					break;
