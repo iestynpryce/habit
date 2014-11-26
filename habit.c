@@ -22,6 +22,12 @@ static int nhabit = 1;
 static char *get_default_storage_path();
 static int get_id();
 static int get_line(char **line, size_t * len, FILE * f);
+static char *get_habit(char *line);
+static char *get_reward(char *line);
+static char *get_string_at_field(char *line, int nfield);
+static int get_int_at_field(char *line, int nfield);
+static int get_score(char *line);
+static int get_ngates(char *line);
 static void record_habit(char *id);
 static void usage();
 
@@ -53,6 +59,84 @@ static int add_habit(char *habit, char *reward)
 	free(path);
 	fclose(f);
 	return 0;
+}
+
+static char *get_reward(char *line)
+{
+	return get_string_at_field(line, 2);
+}
+
+static char *get_habit(char *line)
+{
+	return get_string_at_field(line, 1);
+}
+
+static char *get_string_at_field(char *line, int nfield)
+{
+	assert(line);
+	char *str;
+	size_t len = 128;
+	char c;
+	int i = 0, j = 0;
+	int field = 0;
+
+	str = malloc(len * sizeof(char));
+	if (str == NULL) {
+		fprintf(stderr, "ERROR allocating memory: %s\n", __func__);
+		return NULL;
+	}
+
+	c = line[i];
+	while (c != '\0' && field < (nfield + 1)) {
+		if (c == '\t') {
+			field++;
+		} else if (field == nfield) {
+			if (j == (len - 1)) {
+				char *t;
+				t = realloc(str, 2 * len * sizeof(char));
+				if (t == NULL) {
+					fprintf(stderr,
+						"ERROR allocating memory: %s\n",
+						__func__);
+					free(str);
+					return NULL;
+				} else {
+					str = t;
+					len *= 2;
+				}
+			}
+			str[j] = c;
+			j++;
+		}
+		i++;
+		c = line[i];
+	}
+	str[j] = '\0';
+	return str;
+}
+
+static int get_score(char *line)
+{
+	return get_int_at_field(line, 3);
+}
+
+static int get_ngates(char *line)
+{
+	return get_int_at_field(line, 4);
+}
+
+static int get_int_at_field(char *line, int nfield)
+{
+	char *strscore = get_string_at_field(line, nfield);
+	if (strscore != NULL) {
+		int score = (int)strtol(strscore, NULL, 0);
+		free(strscore);
+		return score;
+	} else {
+		fprintf(stderr, "ERROR extracting score from line \"%s\": %s\n",
+			line, __func__);
+		return -1;
+	}
 }
 
 static char *get_default_storage_path()
@@ -92,8 +176,8 @@ int get_id()
 	path = get_default_storage_path();
 	f = fopen(path, "r");
 	if (f == NULL) {
-		fprintf(stderr, "Unable to open file \"%s\": %s\n", path,
-			__func__);
+		fprintf(stderr, "Unable to open file \"%s\": %s\n",
+			path, __func__);
 		free(path);
 		return -1;
 	}
@@ -146,7 +230,8 @@ static int get_line(char **lineptr, size_t * len, FILE * f)
 				line = tmp;
 				bufsize *= 2;
 			} else {
-				fprintf(stderr, "Error reallocing memory: %s\n",
+				fprintf(stderr,
+					"Error reallocing memory: %s\n",
 					__func__);
 				return -1;
 			}
@@ -180,13 +265,13 @@ void list_habits(char *path)
 	char c;
 	FILE *f = fopen(path, "r+");
 	if (f == NULL) {
-		fprintf(stderr, "Unable to open file \"%s\": %s\n", path,
-			__func__);
+		fprintf(stderr, "Unable to open file \"%s\": %s\n",
+			path, __func__);
 		free(path);
 		exit(-1);
 	}
 
-	while ((c = fgetc(f)) != EOF) {
+	while ((c = getc(f)) != EOF) {
 		fputc(c, stdout);
 	}
 }
@@ -194,19 +279,74 @@ void list_habits(char *path)
 static void record_habit(char *strid)
 {
 	long int id = strtol(strid, NULL, 0);
-	fprintf(stdout, "%ld\n", id);
-//      char *temp_path;
-//      char *path;
+	FILE *tempfile = tmpfile();
+	FILE *f = NULL;
+	char *path = get_default_storage_path();
 
+	char *line = NULL;
+	size_t bufsize = 0;
+	int nchar;
+
+	if (path == NULL) {
+		fprintf(stderr,
+			"ERROR failed to get default storage path: %s\n",
+			__func__);
+		fclose(tempfile);
+		return;
+	}
+
+	f = fopen(path, "r");
+	if (f == NULL) {
+		fprintf(stderr, "ERROR opening file %s: %s\n", path, __func__);
+		fclose(tempfile);
+		return;
+	}
 	// Find habit with 'id'
+	while (true) {
+		int id_tmp;
+		nchar = get_line(&line, &bufsize, f);
+		if (nchar < 0) {
+			break;
+		} else {
+			sscanf(line, "%d\t", &id_tmp);
+			if (id_tmp == id) {
+				//update record
+				char *habit = get_habit(line);
+				char *reward = get_reward(line);
+				int score = get_score(line);
+				int ngates = get_ngates(line);
+				fprintf(tempfile,
+					"%d\t%s\t%s\t%d\t%d\n", (int)id,
+					habit, reward, score, ngates);
+				printf("%d\t%s\t%s\t%d\t%d\n", (int)id,
+				       habit, reward, score, ngates);
+			} else {
+				fprintf(tempfile, "%s\n", line);
+			}
+		}
+		free(line);
+	}
 
+	fclose(f);
+	f = fopen(path, "w");
+	if (f == NULL) {
+		fprintf(stderr, "ERROR opening file %s: %s\n", path, __func__);
+		fclose(tempfile);
+		return;
+	}
+	// Copy file to ~/.habit
+	char c;
+	while ((c = getc(tempfile)) != EOF) {
+		printf("%c", c);
+		putc(c, f);
+	}
+	fclose(f);
+	fclose(tempfile);
 	// Write out habit data to temp file up to the record we're updating
 
 	// Write out an updated record
 
 	// Write out the rest of the records
-
-	// Copy file to ~/.habit
 
 	// Write change information to stdout
 }
