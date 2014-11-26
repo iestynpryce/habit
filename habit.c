@@ -301,7 +301,7 @@ static void record_habit(char *strid)
 		fclose(tempfile);
 		return;
 	}
-	// Find habit with 'id'
+	// Find habit with 'id'.
 	while (true) {
 		int id_tmp;
 		nchar = get_line(&line, &bufsize, f);
@@ -327,7 +327,11 @@ static void record_habit(char *strid)
 		free(line);
 	}
 
+	// Close .habit, reset temp file to start.
 	fclose(f);
+	rewind(tempfile);
+
+	// Reopen .habit file for writing.
 	f = fopen(path, "w");
 	if (f == NULL) {
 		fprintf(stderr, "ERROR opening file %s: %s\n", path, __func__);
@@ -342,13 +346,7 @@ static void record_habit(char *strid)
 	}
 	fclose(f);
 	fclose(tempfile);
-	// Write out habit data to temp file up to the record we're updating
 
-	// Write out an updated record
-
-	// Write out the rest of the records
-
-	// Write change information to stdout
 }
 
 int main(int argc, char *argv[])
