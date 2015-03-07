@@ -308,6 +308,9 @@ static void update_scores(FILE * f, int id, char *line)
 		printf("Congratulations, you passed a gate! ");
 		printf("Reward yourself with: %s\n", reward);
 	}
+
+	free(habit);
+	free(reward);
 }
 
 static void update_habit(Action action, char *strid, ...)
@@ -389,7 +392,7 @@ static void update_habit(Action action, char *strid, ...)
 	}
 	fclose(f);
 	fclose(tempfile);
-
+	free(path);
 }
 
 static void update_reward(FILE * f, int id, char *line, char *reward)
@@ -400,6 +403,7 @@ static void update_reward(FILE * f, int id, char *line, char *reward)
 	int ngates = get_ngates(line);
 	printf("Reward for habit %d updated:\n", id);
 	tee_habit(f, id, habit, reward, score, ngates);
+	free(habit);
 }
 
 /* Write a record to filehandle f and to stdout */
