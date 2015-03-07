@@ -1,8 +1,8 @@
-/* Command line utility to practice habit forming using randomised rewards *
- * Author: Iestyn Pryce							   *
- * 09/04/2012
- * 02/03/2014 - minor improvements
- */
+/***************************************************************************
+ * Command line utility to practice habit forming using randomised rewards *
+ * Author: Iestyn Pryce							                           *
+ * License: MIT                                                            *
+ ***************************************************************************/
 #include "habit.h"
 
 #include <stdbool.h>
