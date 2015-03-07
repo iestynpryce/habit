@@ -19,6 +19,7 @@ static habit *habits;
 static size_t nrec = 10;
 static int nhabit = 1;
 
+static int add_habit(char *habit, char *reward);
 static char *get_default_storage_path();
 static int get_id();
 static int get_line(char **line, size_t * len, FILE * f);
