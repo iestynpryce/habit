@@ -19,6 +19,8 @@
 
 const char *program_name;
 
+const char *fmt = "%d\t%s\t%s\t%d\t%d\n";
+
 typedef enum Actions { RECORD, UPDATE, DELETE } Action;
 
 static int add_habit(char *habit, char *reward);
@@ -56,7 +58,7 @@ static int add_habit(char *habit, char *reward)
 
 	id = get_id();
 
-	if (fprintf(f, "%d\t%s\t%s\t%d\t%d\n", id, habit, reward, 0, 0) < 0) {
+	if (fprintf(f, fmt, id, habit, reward, 0, 0) < 0) {
 		fprintf(stderr, "Error writing to file \"%s\": %s\n", path,
 			__func__);
 		free(path);
@@ -404,8 +406,8 @@ static void update_reward(FILE * f, int id, char *line, char *reward)
 static void tee_habit(FILE * f, int id, char *habit, char *reward, int score,
 		      int gates)
 {
-	fprintf(f, "%d\t%s\t%s\t%d\t%d\n", id, habit, reward, score, gates);
-	printf("%d\t%s\t%s\t%d\t%d\n", id, habit, reward, score, gates);
+	fprintf(f, fmt, id, habit, reward, score, gates);
+	printf(fmt, id, habit, reward, score, gates);
 }
 
 int main(int argc, char *argv[])
