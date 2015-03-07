@@ -424,7 +424,14 @@ int main(int argc, char *argv[])
 						usage();
 					}
 					break;
-
+				case 'h':	/* Output usage/help */
+					usage();
+					break;
+				default:	/* Output usage/help if option is unrecognised */
+					fprintf(stderr,
+						"Unrecognised option: -%c\n",
+						(*argv)[1]);
+					usage();
 				}
 			}
 			--argc;
@@ -638,6 +645,7 @@ OPTIONS:\n\
     -a <habit> <reward>     Add a new habit with a reward\n\
     -l                      List all habits (default when no options are given)\n\
     -r <id>                 Record that habit with <id> has been done\n\
+    -h                      This usage message\n\
 \n\
 ");
 }
