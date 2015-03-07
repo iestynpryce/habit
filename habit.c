@@ -28,6 +28,7 @@ static char *get_string_at_field(char *line, int nfield);
 static int get_int_at_field(char *line, int nfield);
 static int get_score(char *line);
 static int get_ngates(char *line);
+static int get_record_score();
 static void record_habit(char *id);
 static void usage();
 
@@ -311,15 +312,28 @@ static void record_habit(char *strid)
 			sscanf(line, "%d\t", &id_tmp);
 			if (id_tmp == id) {
 				//update record
+				bool achived = false;
 				char *habit = get_habit(line);
 				char *reward = get_reward(line);
 				int score = get_score(line);
+				score += get_record_score();
 				int ngates = get_ngates(line);
+				int achived_gates = score / 15;
+				if (achived_gates > ngates) {
+					ngates++;
+					achived = true;
+				}
 				fprintf(tempfile,
 					"%d\t%s\t%s\t%d\t%d\n", (int)id,
 					habit, reward, score, ngates);
 				printf("%d\t%s\t%s\t%d\t%d\n", (int)id,
 				       habit, reward, score, ngates);
+				if (achived) {
+					printf
+					    ("Congratulations, you passed a gate! ");
+					printf("Reward yourself with: %s\n",
+					       reward);
+				}
 			} else {
 				fprintf(tempfile, "%s\n", line);
 			}
@@ -341,7 +355,6 @@ static void record_habit(char *strid)
 	// Copy file to ~/.habit
 	char c;
 	while ((c = getc(tempfile)) != EOF) {
-		printf("%c", c);
 		putc(c, f);
 	}
 	fclose(f);
@@ -404,8 +417,6 @@ int main(int argc, char *argv[])
 					} else {
 						usage();
 					}
-					printf
-					    ("TODO: Record habit as having been done\n");
 					break;
 
 				}
@@ -600,6 +611,12 @@ void perform_habit(habit * h)
 		fprintf(stderr, "Out of memory\n");
 		exit(OUT_OF_MEMORY);
 	}
+}
+
+/* return a uniform random value in the range [1,10] */
+static int get_record_score()
+{
+	return (rand() % 10) + 1;
 }
 
 /* Print out the programs usage instructions */
