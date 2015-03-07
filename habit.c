@@ -6,6 +6,7 @@
 #include "habit.h"
 
 #include <stdbool.h>
+#include <stdarg.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
@@ -18,6 +19,8 @@
 
 const char *program_name;
 
+typedef enum Actions { RECORD, UPDATE, DELETE } Action;
+
 static int add_habit(char *habit, char *reward);
 static char *get_default_storage_path();
 static int get_id();
@@ -29,8 +32,11 @@ static int get_int_at_field(char *line, int nfield);
 static int get_score(char *line);
 static int get_ngates(char *line);
 static int get_record_score();
-static void record_habit(char *id);
-static void update_reward(char *id, char *reward);
+static void update_habit(Action a, char *id, ...);
+static void update_reward(FILE * f, int id, char *line, char *reward);
+static void update_scores(FILE * f, int id, char *line);
+static void tee_habit(FILE * f, int id, char *habit, char *reward, int score,
+		      int gates);
 static void usage();
 
 static int add_habit(char *habit, char *reward)
@@ -280,7 +286,29 @@ void list_habits(char *path)
 	fclose(f);
 }
 
-static void record_habit(char *strid)
+static void update_scores(FILE * f, int id, char *line)
+{
+	bool achived = false;
+
+	char *habit = get_habit(line);
+	char *reward = get_reward(line);
+	int score = get_score(line);
+	score += get_record_score();
+	int ngates = get_ngates(line);
+
+	int achived_gates = score / 15;
+	if (achived_gates > ngates) {
+		ngates++;
+		achived = true;
+	}
+	tee_habit(f, (int)id, habit, reward, score, ngates);
+	if (achived) {
+		printf("Congratulations, you passed a gate! ");
+		printf("Reward yourself with: %s\n", reward);
+	}
+}
+
+static void update_habit(Action action, char *strid, ...)
 {
 	long int id = strtol(strid, NULL, 0);
 	FILE *tempfile = tmpfile();
@@ -315,27 +343,24 @@ static void record_habit(char *strid)
 			sscanf(line, "%d\t", &id_tmp);
 			if (id_tmp == id) {
 				//update record
-				bool achived = false;
-				char *habit = get_habit(line);
-				char *reward = get_reward(line);
-				int score = get_score(line);
-				score += get_record_score();
-				int ngates = get_ngates(line);
-				int achived_gates = score / 15;
-				if (achived_gates > ngates) {
-					ngates++;
-					achived = true;
-				}
-				fprintf(tempfile,
-					"%d\t%s\t%s\t%d\t%d\n", (int)id,
-					habit, reward, score, ngates);
-				printf("%d\t%s\t%s\t%d\t%d\n", (int)id,
-				       habit, reward, score, ngates);
-				if (achived) {
-					printf
-					    ("Congratulations, you passed a gate! ");
-					printf("Reward yourself with: %s\n",
-					       reward);
+				switch (action) {
+				case RECORD:
+					update_scores(tempfile, id, line);
+					break;
+				case UPDATE:
+					{
+						va_list ap;
+						va_start(ap, strid);
+						update_reward(tempfile, id,
+							      line, va_arg(ap,
+									   char
+									   *));
+						va_end(ap);
+					}
+					break;
+				case DELETE:
+					// Do nothing i.e. don't print the record
+					break;
 				}
 			} else {
 				fprintf(tempfile, "%s\n", line);
@@ -365,77 +390,22 @@ static void record_habit(char *strid)
 
 }
 
-static void update_reward(char *strid, char *reward)
+static void update_reward(FILE * f, int id, char *line, char *reward)
 {
-	long int id = strtol(strid, NULL, 0);
-	FILE *tempfile = tmpfile();
-	FILE *f = NULL;
-	char *path = get_default_storage_path();
+	//update record
+	char *habit = get_habit(line);
+	int score = get_score(line);
+	int ngates = get_ngates(line);
+	printf("Reward for habit %d updated:\n", id);
+	tee_habit(f, id, habit, reward, score, ngates);
+}
 
-	char *line = NULL;
-	size_t bufsize = 0;
-	int nchar;
-
-	if (path == NULL) {
-		fprintf(stderr,
-			"ERROR failed to get default storage path: %s\n",
-			__func__);
-		fclose(tempfile);
-		return;
-	}
-
-	f = fopen(path, "r");
-	if (f == NULL) {
-		fprintf(stderr, "ERROR opening file %s: %s\n", path, __func__);
-		fclose(tempfile);
-		return;
-	}
-	// Find habit with 'id'.
-	while (true) {
-		int id_tmp;
-		nchar = get_line(&line, &bufsize, f);
-		if (nchar < 0) {
-			break;
-		} else {
-			sscanf(line, "%d\t", &id_tmp);
-			if (id_tmp == id) {
-				//update record
-				char *habit = get_habit(line);
-				int score = get_score(line);
-				int ngates = get_ngates(line);
-				fprintf(tempfile,
-					"%d\t%s\t%s\t%d\t%d\n", (int)id,
-					habit, reward, score, ngates);
-				printf("Reward for habit %ld updated:\n", id);
-				printf("%d\t%s\t%s\t%d\t%d\n", (int)id,
-				       habit, reward, score, ngates);
-			} else {
-				fprintf(tempfile, "%s\n", line);
-			}
-		}
-		free(line);
-	}
-
-	// Close .habit, reset temp file to start.
-	fclose(f);
-	rewind(tempfile);
-
-	// Reopen .habit file for writing.
-	f = fopen(path, "w");
-	if (f == NULL) {
-		fprintf(stderr, "ERROR opening file %s: %s\n", path, __func__);
-		fclose(tempfile);
-		return;
-	}
-	// Copy file to ~/.habit
-	char c;
-	while ((c = getc(tempfile)) != EOF) {
-		putc(c, f);
-	}
-
-	fclose(f);
-	fclose(tempfile);
-
+/* Write a record to filehandle f and to stdout */
+static void tee_habit(FILE * f, int id, char *habit, char *reward, int score,
+		      int gates)
+{
+	fprintf(f, "%d\t%s\t%s\t%d\t%d\n", id, habit, reward, score, gates);
+	printf("%d\t%s\t%s\t%d\t%d\n", id, habit, reward, score, gates);
 }
 
 int main(int argc, char *argv[])
@@ -484,12 +454,21 @@ int main(int argc, char *argv[])
 						usage();
 					}
 					break;
+				case 'd':	/* Delete habit */
+					if (argc > 1) {
+						update_habit(DELETE, argv[1]);
+						++argv;
+						--argc;
+					} else {
+						usage();
+					}
+					break;
 				case 'l':	/* List current habits */
 					list_habits(habit_file_path);
 					break;
 				case 'r':	/* Record habit as done */
 					if (argc > 1) {
-						record_habit(argv[1]);
+						update_habit(RECORD, argv[1]);
 						++argv;
 						--argc;
 					} else {
@@ -498,7 +477,8 @@ int main(int argc, char *argv[])
 					break;
 				case 'u':	/* Update reward */
 					if (argc > 2) {
-						update_reward(argv[1], argv[2]);
+						update_habit(UPDATE, argv[1],
+							     argv[2]);
 					} else {
 						usage();
 					}
@@ -539,6 +519,7 @@ USAGE: %s [OPTIONS]\n\
 OPTIONS:\n\
 \n\
     -a <habit> <reward>     Add a new habit with a reward\n\
+    -d <id>                 Delete habit <id>\n\
     -l                      List all habits (default when no options are given)\n\
     -r <id>                 Record that habit with <id> has been done\n\
     -u <id> <reward>        Update habit <id> with a new reward <reward>\n\
