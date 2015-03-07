@@ -18,10 +18,6 @@
 
 const char *program_name;
 
-static habit *habits;
-static size_t nrec = 10;
-static int nhabit = 1;
-
 static int add_habit(char *habit, char *reward);
 static char *get_default_storage_path();
 static int get_id();
@@ -156,7 +152,7 @@ static char *get_default_storage_path()
 		return NULL;
 	}
 
-	len = strlen(env + 1);	/* Add one for '\0' char */
+	len = strlen(env) + 1;	/* Add one for '\0' char */
 	len += 7;		/* Add 7 for '/.habit' */
 	path = malloc(len * sizeof(char));
 	if (path == NULL) {
@@ -280,6 +276,8 @@ void list_habits(char *path)
 	while ((c = getc(f)) != EOF) {
 		fputc(c, stdout);
 	}
+
+	fclose(f);
 }
 
 static void record_habit(char *strid)
@@ -522,189 +520,6 @@ int main(int argc, char *argv[])
 
 	free(habit_file_path);
 	return 0;
-}
-
-/* Read in the habit file */
-int read_habits(FILE * file, size_t nbytes, int nrec)
-{
-	assert(file != NULL);
-	int n = 0;
-	char line[nbytes];
-	char *tok;
-	const char sep[] = ",";
-	while (fgets(line, nbytes, file) != NULL) {
-		if (n == nrec) {
-			nrec += 10;
-			habits = xrealloc(habits, nrec * sizeof(habit));
-			if (habits == NULL) {
-				return OUT_OF_MEMORY;
-			}
-		}
-		/* Parse each line */
-		tok = strtok(line, sep);
-		if (tok != NULL) {
-			strcpy(habits[n].habit, tok);
-		} else {
-			read_error(n);
-		}
-
-		tok = strtok(NULL, sep);
-		if (tok != NULL) {
-			strcpy(habits[n].reward, tok);
-		} else {
-			read_error(n);
-		}
-
-		tok = strtok(NULL, sep);
-		if (tok != NULL) {
-			habits[n].points = atof(tok);
-		} else {
-			read_error(n);
-		}
-
-		tok = strtok(NULL, sep);
-		if (tok != NULL) {
-			habits[n].gates = atoi(tok);
-		} else {
-			read_error(n);
-		}
-
-		n++;
-	}
-	return n;
-}
-
-void read_error(int n)
-{
-	fprintf(stderr, "Warning: habit %d malformed. Skipping...\n", n);
-}
-
-/* Increase the number of points by a random number in the range [1,10] */
-void add_rand_point(habit * h)
-{
-	assert(h != NULL);
-	h->points += (rand() % 10) + 1;
-	printf("You now have %f points\n", h->points);
-}
-
-void check_gates(habit * h)
-{
-	assert(h != NULL);
-	int i = (int)h->points / 15;
-	if (i > h->gates) {
-		habit *r;
-		h->gates++;
-		printf("You've passed a gate, well done\n");
-		printf("Treat yourself to: %s\n", h->reward);
-		/* We need a new reward and a new habit */
-		r = new_reward(h);
-		if (r == NULL) {
-			fprintf(stderr, "Failed to set new reward\n");
-		}
-		r = new_habit();
-		if (r == NULL) {
-			fprintf(stderr, "Failed to add new habit\n");
-		}
-	}
-}
-
-habit *new_reward(habit * h)
-{
-	assert(h != NULL);
-	size_t nbytes = 80;
-	char *str;
-	str = (char *)malloc(nbytes * sizeof(char));
-	if (str != NULL) {
-		printf("Enter a new reward: ");
-		getline(&str, &nbytes, stdin);
-		sscanf(str, "%[^\t\n]", h->reward);
-		free(str);
-		return h;
-	} else {
-		fprintf(stderr, "Out of memory\n");
-		exit(OUT_OF_MEMORY);
-	}
-}
-
-/* Add a new habit */
-habit *new_habit()
-{
-	/* Add code for adding a new habit */
-	if (habits == NULL) {
-		habits = (habit *) malloc(nrec * sizeof(habit));
-		if (habits == NULL) {
-			 /*ERROR*/ fprintf(stderr, "Out of memory\n");
-			exit(OUT_OF_MEMORY);
-		}
-	}
-
-	/* Resize array of habits if necessary */
-	if (nhabit == nrec) {
-		nrec += 10;
-		habits = xrealloc(habits, nrec * sizeof(habit));
-		if (habits == NULL) {
-			return NULL;
-		}
-	}
-
-	size_t nbytes = 80;
-	char *str;
-	str = (char *)malloc(nbytes * sizeof(char));
-	if (str != NULL) {
-		printf("Enter a new habit: ");
-		getline(&str, &nbytes, stdin);
-		sscanf(str, "%[^\t\n]", habits[nhabit].habit);
-		printf("Enter a reward: ");
-		getline(&str, &nbytes, stdin);
-		sscanf(str, "%[^\t\n]", habits[nhabit].reward);
-		free(str);
-	} else {
-		fprintf(stderr, "Out of memory\n");
-		return NULL;
-	}
-
-	nhabit++;
-	return &habits[nhabit - 1];
-}
-
-/* Wrapper with error handling around realloc */
-void *xrealloc(void *ptr, size_t size)
-{
-	assert(ptr != NULL);
-	assert(size > 0);
-	void *value = realloc(ptr, size);
-	if (value == 0) {
-		/* ERROR */
-		fprintf(stderr, "Out of memory\n");
-		exit(OUT_OF_MEMORY);
-	}
-	return value;
-}
-
-/* Once a habit has been selected, ask if it has been completed */
-void perform_habit(habit * h)
-{
-	assert(h != NULL);
-	size_t nbytes = 5;
-	char buf[nbytes];
-	char *str;
-	printf("Habit: %s (points: %f)\n", h->habit, h->points);
-	printf("Did you perform habit? [y/n]: ");
-	str = (char *)malloc(nbytes * sizeof(char));
-	if (str != NULL) {
-		getline(&str, &nbytes, stdin);
-		sscanf(str, "%s", buf);
-		if (strcmp(buf, "y") == 0) {	/* if matched */
-			add_rand_point(h);
-			check_gates(h);
-		} else if (strcmp(buf, "n") != 0) {
-			fprintf(stderr, "%s not a valid input\n", buf);
-		}
-		free(str);
-	} else {
-		fprintf(stderr, "Out of memory\n");
-		exit(OUT_OF_MEMORY);
-	}
 }
 
 /* return a uniform random value in the range [1,10] */
