@@ -15,6 +15,9 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
+const char *program_name;
+
 static habit *habits;
 static size_t nrec = 10;
 static int nhabit = 1;
@@ -367,6 +370,8 @@ int main(int argc, char *argv[])
 {
 	char *habit_file_path;
 
+	program_name = argv[0];
+
 	/* Seed the random number generator */
 	srand(time(0));
 
@@ -623,5 +628,16 @@ static int get_record_score()
 /* Print out the programs usage instructions */
 static void usage()
 {
-	printf("TODO\n");
+	printf("\
+USAGE: %s [OPTIONS]\n\
+\n", program_name);
+
+	printf("\
+OPTIONS:\n\
+\n\
+    -a <habit> <reward>     Add a new habit with a reward\n\
+    -l                      List all habits (default when no options are given)\n\
+    -r <id>                 Record that habit with <id> has been done\n\
+\n\
+");
 }
