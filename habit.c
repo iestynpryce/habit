@@ -34,6 +34,7 @@ static int get_score(char *line);
 static int get_ngates(char *line);
 static int get_record_score();
 static void record_habit(char *id);
+static void update_reward(char *id, char *reward);
 static void usage();
 
 static int add_habit(char *habit, char *reward)
@@ -366,6 +367,79 @@ static void record_habit(char *strid)
 
 }
 
+static void update_reward(char *strid, char *reward)
+{
+	long int id = strtol(strid, NULL, 0);
+	FILE *tempfile = tmpfile();
+	FILE *f = NULL;
+	char *path = get_default_storage_path();
+
+	char *line = NULL;
+	size_t bufsize = 0;
+	int nchar;
+
+	if (path == NULL) {
+		fprintf(stderr,
+			"ERROR failed to get default storage path: %s\n",
+			__func__);
+		fclose(tempfile);
+		return;
+	}
+
+	f = fopen(path, "r");
+	if (f == NULL) {
+		fprintf(stderr, "ERROR opening file %s: %s\n", path, __func__);
+		fclose(tempfile);
+		return;
+	}
+	// Find habit with 'id'.
+	while (true) {
+		int id_tmp;
+		nchar = get_line(&line, &bufsize, f);
+		if (nchar < 0) {
+			break;
+		} else {
+			sscanf(line, "%d\t", &id_tmp);
+			if (id_tmp == id) {
+				//update record
+				char *habit = get_habit(line);
+				int score = get_score(line);
+				int ngates = get_ngates(line);
+				fprintf(tempfile,
+					"%d\t%s\t%s\t%d\t%d\n", (int)id,
+					habit, reward, score, ngates);
+				printf("Reward for habit %ld updated:\n", id);
+				printf("%d\t%s\t%s\t%d\t%d\n", (int)id,
+				       habit, reward, score, ngates);
+			} else {
+				fprintf(tempfile, "%s\n", line);
+			}
+		}
+		free(line);
+	}
+
+	// Close .habit, reset temp file to start.
+	fclose(f);
+	rewind(tempfile);
+
+	// Reopen .habit file for writing.
+	f = fopen(path, "w");
+	if (f == NULL) {
+		fprintf(stderr, "ERROR opening file %s: %s\n", path, __func__);
+		fclose(tempfile);
+		return;
+	}
+	// Copy file to ~/.habit
+	char c;
+	while ((c = getc(tempfile)) != EOF) {
+		putc(c, f);
+	}
+
+	fclose(f);
+	fclose(tempfile);
+
+}
+
 int main(int argc, char *argv[])
 {
 	char *habit_file_path;
@@ -420,6 +494,13 @@ int main(int argc, char *argv[])
 						record_habit(argv[1]);
 						++argv;
 						--argc;
+					} else {
+						usage();
+					}
+					break;
+				case 'u':	/* Update reward */
+					if (argc > 2) {
+						update_reward(argv[1], argv[2]);
 					} else {
 						usage();
 					}
@@ -645,6 +726,7 @@ OPTIONS:\n\
     -a <habit> <reward>     Add a new habit with a reward\n\
     -l                      List all habits (default when no options are given)\n\
     -r <id>                 Record that habit with <id> has been done\n\
+    -u <id> <reward>        Update habit <id> with a new reward <reward>\n\
     -h                      This usage message\n\
 \n\
 ");
